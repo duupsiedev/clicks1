@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CASCADE // CLICKER</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #050508;
+    --panel: #0a0a12;
+    --border: #1a1a2e;
+    --cyan: #00f5ff;
+    --magenta: #ff00aa;
+    --yellow: #f5c400;
+    --green: #00ff88;
+    --dim: #2a2a4a;
+    --text: #c0c0e0;
+    --glow-c: 0 0 8px #00f5ff, 0 0 20px #00f5ff44;
+    --glow-m: 0 0 8px #ff00aa, 0 0 20px #ff00aa44;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.013) 2px, rgba(0,245,255,0.013) 4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    width: 100%;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #0a0a1800, #0a0a18ee, #0a0a1800);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-top {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.1rem;
+    letter-spacing: 0.2em;
+    color: var(--cyan);
+    text-shadow: var(--glow-c);
+  }
+  .logo span { color: var(--magenta); text-shadow: var(--glow-m); }
+
+  .save-row { display: flex; gap: 8px; }
+
+  .save-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    border: 1px solid var(--dim);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .save-btn:active { border-color: var(--cyan); color: var(--cyan); }
+  .save-btn.danger:active { border-color: var(--magenta); color: var(--magenta); }
+  .save-btn.saved { border-color: var(--green); color: var(--green); }
+
+  .points-display {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .points-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--yellow);
+    text-shadow: 0 0 12px #f5c40088;
+    line-height: 1;
+  }
+
+  .pps {
+    font-size: 0.75rem;
+    color: var(--green);
+    letter-spacing: 0.05em;
+  }
+
+  /* MAIN */
+  main {
+    width: 100%;
+    max-width: 680px;
+    padding: 12px 10px 40px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* NODE CARD */
+  .node-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 0.35s ease both;
+  }
+
+  .node-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--bc, #00f5ff), transparent);
+    opacity: 0.7;
+  }
+
+  .node-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .node-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--bc);
+  }
+
+  .node-desc {
+    font-size: 0.6rem;
+    color: var(--dim);
+  }
+
+  .progress-bar-wrap {
+    background: #111122;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    height: 5px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--bc);
+    box-shadow: 0 0 5px var(--bc);
+    transition: width 0.1s linear;
+  }
+
+  .prod-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--bc);
+    text-shadow: 0 0 6px var(--bc);
+  }
+
+  .node-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 0.62rem;
+    color: var(--dim);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .node-stats em { color: var(--text); font-style: normal; }
+
+  .multi-badge {
+    font-size: 0.62rem;
+    color: var(--yellow);
+    text-shadow: 0 0 5px #f5c40066;
+  }
+
+  /* ACTION BUTTONS */
+  .node-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .click-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 14px 0;
+    flex: 2;
+    border: 1px solid var(--bc);
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--bc);
+    transition: background 0.1s, color 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .click-btn:active { background: var(--bc); color: var(--bg); }
+
+  .multi-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 14px 8px;
+    flex: 1;
+    border: 1px solid var(--yellow);
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--yellow);
+    transition: background 0.1s, color 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+  }
+  .multi-btn:active:not(:disabled) { background: var(--yellow); color: var(--bg); }
+  .multi-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+    border-color: var(--dim);
+    color: var(--dim);
+  }
+
+  /* LOCKED BAR */
+  .locked-bar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: fadeIn 0.35s ease both;
+  }
+
+  .locked-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+
+  .unlock-prog-wrap {
+    flex: 1;
+    background: #111122;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    height: 5px;
+    overflow: hidden;
+  }
+
+  .unlock-prog {
+    height: 100%;
+    background: linear-gradient(90deg, var(--magenta), var(--cyan));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 5px var(--magenta);
+  }
+
+  .unlock-cost {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    color: var(--magenta);
+    text-shadow: var(--glow-m);
+    white-space: nowrap;
+  }
+
+  /* FLOATING */
+  .floating-pt {
+    position: fixed;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--yellow);
+    text-shadow: 0 0 8px #f5c400;
+    pointer-events: none;
+    animation: floatUp 0.8s ease-out forwards;
+    z-index: 999;
+  }
+
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-44px); }
+  }
+
+  /* COLOR PALETTE */
+  .c0 { --bc: #00f5ff; }
+  .c1 { --bc: #ff00aa; }
+  .c2 { --bc: #f5c400; }
+  .c3 { --bc: #00ff88; }
+  .c4 { --bc: #ff6600; }
+  .c5 { --bc: #aa00ff; }
+  .c6 { --bc: #00ccff; }
+  .c7 { --bc: #ff3366; }
+  .c8 { --bc: #44ff00; }
+  .c9 { --bc: #ff9900; }
+
+  /* BITS & REFORMAT */
+  .bits-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--magenta);
+    text-shadow: var(--glow-m);
+    min-height: 1em;
+  }
+
+  .reformat-btn {
+    width: 100%;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 12px;
+    border: 1px solid var(--magenta);
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--magenta);
+    text-shadow: var(--glow-m);
+    transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    margin-top: 2px;
+  }
+  .reformat-btn:active:not(:disabled) {
+    background: var(--magenta);
+    color: var(--bg);
+  }
+  .reformat-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+    border-color: var(--dim);
+    color: var(--dim);
+    text-shadow: none;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f0f1e;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    padding: 8px 20px;
+    border-radius: 4px;
+    z-index: 200;
+    white-space: nowrap;
+    animation: toastIn 0.2s ease, toastOut 0.3s ease 1.5s forwards;
+    pointer-events: none;
+  }
+
+  @keyframes toastIn  { from { opacity:0; transform: translateX(-50%) translateY(8px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="logo">CASCADE<span>//</span>CLICKER</div>
+    <div class="save-row">
+      <button class="save-btn" id="save-btn" onclick="saveGame()">SAVE</button>
+      <button class="save-btn danger" onclick="resetGame()">RESET</button>
+    </div>
+  </div>
+  <div class="points-display">
+    <div class="points-value" id="pts">0</div>
+    <div class="pps" id="pps">▶ 0.00/s <span class="multi-badge" id="pts-multi-badge" style="display:none"></span></div>
+  </div>
+  <div class="bits-display" id="bits-display"></div>
+</header>
+
+<main id="main"></main>
+
+<script>
+// ── CONSTANTS ──
+const BUTTON_COUNT    = 10;
+const CLICKS_TO_LEVEL = 10;
+const SAVE_KEY        = 'cascade_save';
+
+const UNLOCK_COSTS = [0, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24, 1e27];
+const MULTI_COSTS  = [100, 1e4, 1e7, 1e10, 1e13, 1e16, 1e19, 1e22, 1e25, 1e28];
+const NAMES = ['NODE-01','NODE-02','NODE-03','NODE-04','NODE-05','NODE-06','NODE-07','NODE-08','NODE-09','NODE-10'];
+const DESCS = ['+1 pt/s per level','auto-clicks NODE-01','auto-clicks NODE-02','auto-clicks NODE-03','auto-clicks NODE-04','auto-clicks NODE-05','auto-clicks NODE-06','auto-clicks NODE-07','auto-clicks NODE-08','auto-clicks NODE-09'];
+
+// ── STATE ──
+let points = 0;
+let pps    = 0;
+let bits   = 0;
+
+const state = Array.from({ length: BUTTON_COUNT }, (_, i) => ({
+  clicks: 0, levels: 0, autoRate: 0,
+  multiplier: 1, multiCount: 0, unlocked: i === 0,
+}));
+
+const autoAcc = new Array(BUTTON_COUNT).fill(0);
+let lastTick = performance.now();
+let lastUI   = 0;
+let lastSave = 0;
+
+// ── HELPERS ──
+function fmt(n) {
+  if (n < 1000) return n.toFixed(n < 10 ? 2 : 0);
+  return n.toExponential(2);
+}
+
+// node i's multiplier boosts what node i sends DOWN to node i-1
+// so node i-1's incoming multiplier = state[i].multiplier (from node above)
+function incomingMulti(i) {
+  return (i + 1 < BUTTON_COUNT) ? state[i + 1].multiplier : 1;
+}
+
+function incomingCount(i) {
+  return (i + 1 < BUTTON_COUNT) ? state[i + 1].multiCount : 0;
+}
+
+function bitsBonus() {
+  return 1 + bits * 0.03;
+}
+
+// effective auto display for node i = raw autoRate × multiplier from above × bits bonus
+function effectiveAuto(i) {
+  return state[i].autoRate * incomingMulti(i) * bitsBonus();
+}
+
+// ── GAME LOGIC ──
+function recalcPPS() {
+  const bonus = bitsBonus();
+  const effectiveRate = new Array(BUTTON_COUNT).fill(0);
+  for (let i = BUTTON_COUNT - 1; i >= 1; i--) {
+    if (!state[i].unlocked) continue;
+    const ownOutput  = state[i].levels * state[i].multiplier * bonus;
+    const autoLevels = effectiveRate[i] / CLICKS_TO_LEVEL;
+    effectiveRate[i - 1] = (ownOutput + autoLevels) * CLICKS_TO_LEVEL;
+  }
+  const node0AutoLevels = effectiveRate[0] / CLICKS_TO_LEVEL;
+  pps = (state[0].levels + node0AutoLevels) * state[0].multiplier * bonus;
+}
+
+function doClick(i) {
+  const s = state[i];
+  s.clicks++;
+  if (s.clicks >= CLICKS_TO_LEVEL) {
+    s.clicks = 0;
+    s.levels++;
+    if (i > 0) state[i - 1].autoRate += 1;
+    recalcPPS();
+  }
+  updateNodeUI(i);
+}
+
+function buyMultiplier(i) {
+  const cost = MULTI_COSTS[i] * Math.pow(1000, state[i].multiCount);
+  if (points < cost) return;
+  points -= cost;
+  state[i].multiCount++;
+  state[i].multiplier = Math.pow(2, state[i].multiCount);
+  recalcPPS();
+  updateNodeUI(i);
+  if (i > 0) updateNodeUI(i - 1); // node below sees new incoming badge/auto
+  updateHeader();
+}
+
+// bits: 5 per order of magnitude above 1M, earned one at a time
+// bit n unlocks at 1M × 10^((n-1)/5)
+function calcBitsGained(pts) {
+  if (pts < 1e6) return 0;
+  return Math.floor(Math.log10(pts / 1e6) * 5) + 1;
+}
+
+function doReformat() {
+  const gained = calcBitsGained(points);
+  if (gained <= 0) { showToast('NEED 1.00e+6 PTS TO REFORMAT'); return; }
+  if (!confirm(`Reformat? Gain ${gained} BITS (total: ${bits + gained}, +${(bits + gained) * 3}% production). All node progress resets.`)) return;
+  bits += gained;
+  points = 0;
+  state.forEach((s, i) => {
+    s.clicks = 0; s.levels = 0; s.autoRate = 0;
+    s.multiplier = 1; s.multiCount = 0; s.unlocked = i === 0;
+  });
+  autoAcc.fill(0);
+  recalcPPS();
+  buildUI();
+  saveGame(true);
+  showToast(`+${gained} BITS // TOTAL BONUS: +${bits * 3}%`);
+}
+
+// ── SAVE / LOAD / RESET ──
+function saveGame(silent = false) {
+  localStorage.setItem(SAVE_KEY, JSON.stringify({ points, bits, state: state.map(s => ({ ...s })) }));
+  if (!silent) {
+    const btn = document.getElementById('save-btn');
+    btn.textContent = 'SAVED!';
+    btn.classList.add('saved');
+    setTimeout(() => { btn.textContent = 'SAVE'; btn.classList.remove('saved'); }, 1500);
+    showToast('GAME SAVED');
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    points = data.points || 0;
+    bits   = data.bits   || 0;
+    data.state.forEach((s, i) => {
+      if (!state[i]) return;
+      state[i].clicks     = s.clicks     ?? 0;
+      state[i].levels     = s.levels     ?? 0;
+      state[i].autoRate   = s.autoRate   ?? 0;
+      state[i].multiplier = s.multiplier ?? 1;
+      state[i].multiCount = s.multiCount ?? 0;
+      state[i].unlocked   = s.unlocked   ?? (i === 0);
+    });
+    recalcPPS();
+    showToast('SAVE LOADED');
+  } catch(e) { console.warn('Load failed', e); }
+}
+
+function resetGame() {
+  if (!confirm('Reset all progress? This cannot be undone.')) return;
+  localStorage.removeItem(SAVE_KEY);
+  points = 0; bits = 0;
+  state.forEach((s, i) => {
+    s.clicks = 0; s.levels = 0; s.autoRate = 0;
+    s.multiplier = 1; s.multiCount = 0; s.unlocked = i === 0;
+  });
+  autoAcc.fill(0);
+  recalcPPS();
+  buildUI();
+  showToast('PROGRESS RESET');
+}
+
+function showToast(msg) {
+  const old = document.querySelector('.toast');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1900);
+}
+
+// ── BUILD UI ──
+function buildUI() {
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+
+  for (let i = 0; i < BUTTON_COUNT; i++) {
+    const s = state[i];
+    const row = document.createElement('div');
+    row.id = `row-${i}`;
+
+    if (!s.unlocked) {
+      const cost = UNLOCK_COSTS[i];
+      row.className = 'locked-bar';
+      row.innerHTML = `
+        <span class="locked-name">${NAMES[i]}</span>
+        <div class="unlock-prog-wrap"><div class="unlock-prog" id="uprog-${i}" style="width:${(Math.min(points/cost,1)*100).toFixed(1)}%"></div></div>
+        <span class="unlock-cost">${fmt(cost)}</span>
+      `;
+      main.appendChild(row);
+      break;
+    }
+
+    row.className = `node-card c${i}`;
+
+    const boostCost  = MULTI_COSTS[i] * Math.pow(1000, s.multiCount);
+    const boostLabel = s.multiCount > 0 ? `×${s.multiplier} ${i===0?'pts/s':'auto'} ▸ ${fmt(boostCost)}` : `×2 ${i===0?'pts/s':'auto'} ▸ ${fmt(boostCost)}`;
+
+    const iMulti  = incomingMulti(i);
+    const iCount  = incomingCount(i);
+    const autoBadge = `<span class="multi-badge" id="incoming-badge-${i}" style="display:${iCount>0?'':'none'}">×${iMulti}</span>`;
+
+    const bitsPreview = calcBitsGained(points);
+    const reformatHtml = i === 0 ? `
+      <button class="reformat-btn" id="reformat-btn" onclick="doReformat()" ${bitsPreview<=0?'disabled':''}>
+        ${bitsPreview > 0 ? `REFORMAT ▸ +${bitsPreview} BITS` : 'REFORMAT ▸ NEED 1.00e+6'}
+      </button>` : '';
+
+    row.innerHTML = `
+      <div class="node-top">
+        <span class="node-name">${NAMES[i]}</span>
+        <span class="node-desc">${DESCS[i]}</span>
+      </div>
+      <div class="progress-bar-wrap" id="pbwrap-${i}">
+        <div class="progress-bar" id="pb-${i}" style="width:${(s.clicks/CLICKS_TO_LEVEL*100).toFixed(1)}%"></div>
+      </div>
+      <div class="prod-display" id="prod-${i}" style="display:none"></div>
+      <div class="node-stats">
+        <span id="clk-stat-${i}">PROG <em id="clk-${i}">${s.clicks}</em>/10</span>
+        <span>LVL <em id="lvl-${i}">${fmt(s.levels)}</em></span>
+        <span>AUTO <em id="aut-${i}">${fmt(effectiveAuto(i))}</em>/s ${autoBadge}</span>
+      </div>
+      <div class="node-actions">
+        <button class="multi-btn" id="multi-btn-${i}" onclick="buyMultiplier(${i})" ${points<boostCost?'disabled':''}>${boostLabel}</button>
+        <button class="click-btn" onclick="handleClick(${i}, event)">CLICK</button>
+      </div>
+      ${reformatHtml}
+    `;
+    main.appendChild(row);
+  }
+}
+
+// ── UPDATE UI ──
+function updateNodeUI(i) {
+  const s = state[i];
+  const sat = s.autoRate >= 20;
+
+  // progress bar or saturated display
+  const pbWrap = document.getElementById(`pbwrap-${i}`);
+  const prodEl = document.getElementById(`prod-${i}`);
+  if (pbWrap && prodEl) {
+    if (sat) {
+      pbWrap.style.display = 'none';
+      prodEl.style.display = 'block';
+      prodEl.textContent = `⚡ ${fmt(effectiveAuto(i) / CLICKS_TO_LEVEL)} lvl/s`;
+    } else {
+      pbWrap.style.display = 'block';
+      prodEl.style.display = 'none';
+      const pb = document.getElementById(`pb-${i}`);
+      if (pb) pb.style.width = (s.clicks / CLICKS_TO_LEVEL * 100).toFixed(1) + '%';
+    }
+  }
+
+  // progress text
+  const clkStat = document.getElementById(`clk-stat-${i}`);
+  const clk     = document.getElementById(`clk-${i}`);
+  if (clkStat) clkStat.style.display = sat ? 'none' : '';
+  if (!sat && clk) clk.textContent = s.clicks;
+
+  // stats
+  const lvl = document.getElementById(`lvl-${i}`);
+  if (lvl) lvl.textContent = fmt(s.levels);
+
+  const aut = document.getElementById(`aut-${i}`);
+  if (aut) aut.textContent = fmt(effectiveAuto(i));
+
+  // boost button (this node's own)
+  const multiBtn = document.getElementById(`multi-btn-${i}`);
+  if (multiBtn) {
+    const cost = MULTI_COSTS[i] * Math.pow(1000, s.multiCount);
+    const lbl  = i === 0 ? 'pts/s' : 'auto';
+    multiBtn.textContent = s.multiCount > 0 ? `×${s.multiplier} ${lbl} ▸ ${fmt(cost)}` : `×2 ${lbl} ▸ ${fmt(cost)}`;
+    multiBtn.disabled = points < cost;
+  }
+
+  // incoming badge on this node (set by node above = state[i+1])
+  const badge = document.getElementById(`incoming-badge-${i}`);
+  if (badge) {
+    badge.style.display = incomingCount(i) > 0 ? '' : 'none';
+    badge.textContent = `×${incomingMulti(i)}`;
+  }
+
+  // pts/s badge in header (set by node 0's own multiplier)
+  if (i === 0) {
+    const ptsBadge = document.getElementById('pts-multi-badge');
+    if (ptsBadge) {
+      ptsBadge.style.display = s.multiCount > 0 ? '' : 'none';
+      ptsBadge.textContent = `×${s.multiplier}`;
+    }
+  }
+}
+
+function updateHeader() {
+  document.getElementById('pts').textContent = fmt(points);
+  document.getElementById('pps').textContent = `▶ ${fmt(pps)}/s`;
+  const bitsEl = document.getElementById('bits-display');
+  if (bitsEl) bitsEl.textContent = bits > 0 ? `⬡ ${bits} BITS (+${bits * 3}%)` : '';
+}
+
+function updateUnlockProgress() {
+  for (let i = 1; i < BUTTON_COUNT; i++) {
+    if (!state[i].unlocked) {
+      const el = document.getElementById(`uprog-${i}`);
+      if (el) el.style.width = (Math.min(points / UNLOCK_COSTS[i], 1) * 100).toFixed(1) + '%';
+      break;
+    }
+  }
+}
+
+function checkUnlocks() {
+  for (let i = 1; i < BUTTON_COUNT; i++) {
+    if (!state[i].unlocked && points >= UNLOCK_COSTS[i]) {
+      state[i].unlocked = true;
+      buildUI();
+      return;
+    }
+  }
+}
+
+function updateReformatBtn() {
+  const btn = document.getElementById('reformat-btn');
+  if (!btn) return;
+  const gained = calcBitsGained(points);
+  btn.textContent = gained > 0 ? `REFORMAT ▸ +${gained} BITS` : 'REFORMAT ▸ NEED 1.00e+6';
+  btn.disabled = gained <= 0;
+}
+
+// ── CLICK HANDLER ──
+function handleClick(i, event) {
+  doClick(i);
+  const rect = event.currentTarget.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'floating-pt';
+  el.textContent = '+1';
+  el.style.left = (rect.left + rect.width / 2 - 10) + 'px';
+  el.style.top  = (rect.top - 8) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+// ── GAME LOOP ──
+function gameTick(now) {
+  const dt = (now - lastTick) / 1000;
+  lastTick = now;
+
+  const bonus = bitsBonus();
+  for (let i = BUTTON_COUNT - 1; i >= 1; i--) {
+    if (!state[i].unlocked) continue;
+    const rate = state[i].levels * state[i].multiplier * bonus;
+    if (rate === 0) continue;
+    autoAcc[i] += rate * dt;
+    if (autoAcc[i] >= 1) {
+      const full = Math.floor(autoAcc[i]);
+      autoAcc[i] -= full;
+      const s = state[i - 1];
+      const total = s.clicks + full;
+      const newLvl = Math.floor(total / CLICKS_TO_LEVEL);
+      s.clicks = total % CLICKS_TO_LEVEL;
+      if (newLvl > 0) {
+        s.levels += newLvl;
+        if (i - 1 > 0) state[i - 2].autoRate += newLvl;
+        recalcPPS();
+      }
+    }
+  }
+
+  points += pps * dt;
+
+  if (now - lastUI > 100) {
+    lastUI = now;
+    for (let i = 0; i < BUTTON_COUNT; i++) {
+      if (!state[i].unlocked) break;
+      updateNodeUI(i);
+    }
+    updateUnlockProgress();
+    checkUnlocks();
+    updateReformatBtn();
+  }
+
+  updateHeader();
+
+  if (now - lastSave > 30000) {
+    lastSave = now;
+    saveGame(true);
+  }
+
+  requestAnimationFrame(gameTick);
+}
+
+// ── INIT ──
+loadGame();
+buildUI();
+updateHeader();
+requestAnimationFrame(gameTick);
+</script>
+</body>
+</html>
