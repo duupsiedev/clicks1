@@ -9,16 +9,18 @@
 
   :root {
     --bg: #050508;
-    --panel: #0a0a12;
-    --border: #1a1a2e;
+    --panel: #0d0d18;
+    --border: #2a2a45;
     --cyan: #00f5ff;
     --magenta: #ff00aa;
     --yellow: #f5c400;
     --green: #00ff88;
-    --dim: #2a2a4a;
-    --text: #c0c0e0;
+    --orange: #ff8800;
+    --dim: #6060a0;
+    --text: #e0e0ff;
     --glow-c: 0 0 8px #00f5ff, 0 0 20px #00f5ff44;
     --glow-m: 0 0 8px #ff00aa, 0 0 20px #ff00aa44;
+    --glow-o: 0 0 8px #ff8800, 0 0 20px #ff880044;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,7 +40,7 @@
     content: '';
     position: fixed;
     inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.013) 2px, rgba(0,245,255,0.013) 4px);
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.012) 2px, rgba(0,245,255,0.012) 4px);
     pointer-events: none;
     z-index: 0;
   }
@@ -46,11 +48,11 @@
   /* HEADER */
   header {
     width: 100%;
-    padding: 12px 16px 14px;
+    padding: 10px 16px 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     border-bottom: 1px solid var(--border);
     background: linear-gradient(90deg, #0a0a1800, #0a0a18ee, #0a0a1800);
     position: sticky;
@@ -68,21 +70,21 @@
   .logo {
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
-    font-size: 1.1rem;
+    font-size: 1.0rem;
     letter-spacing: 0.2em;
     color: var(--cyan);
     text-shadow: var(--glow-c);
   }
   .logo span { color: var(--magenta); text-shadow: var(--glow-m); }
 
-  .save-row { display: flex; gap: 8px; }
+  .save-row { display: flex; gap: 6px; }
 
   .save-btn {
     font-family: 'Orbitron', sans-serif;
     font-size: 0.55rem;
     font-weight: 700;
     letter-spacing: 0.1em;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border: 1px solid var(--dim);
     border-radius: 3px;
     background: transparent;
@@ -98,12 +100,12 @@
   .points-display {
     display: flex;
     align-items: baseline;
-    gap: 12px;
+    gap: 10px;
   }
 
   .points-value {
     font-family: 'Orbitron', sans-serif;
-    font-size: 2rem;
+    font-size: 1.9rem;
     font-weight: 700;
     color: var(--yellow);
     text-shadow: 0 0 12px #f5c40088;
@@ -114,6 +116,33 @@
     font-size: 0.75rem;
     color: var(--green);
     letter-spacing: 0.05em;
+  }
+
+  .header-meta {
+    display: flex;
+    gap: 14px;
+    font-size: 0.65rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .bits-display {
+    color: var(--magenta);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-shadow: var(--glow-m);
+  }
+
+  .oc-display {
+    color: var(--orange);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-shadow: var(--glow-o);
   }
 
   /* MAIN */
@@ -153,7 +182,7 @@
     top: 0; left: 0; right: 0;
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--bc, #00f5ff), transparent);
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   .node-top {
@@ -171,7 +200,7 @@
   }
 
   .node-desc {
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     color: var(--dim);
   }
 
@@ -203,7 +232,7 @@
   .node-stats {
     display: flex;
     gap: 12px;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     color: var(--dim);
     flex-wrap: wrap;
     align-items: center;
@@ -211,16 +240,14 @@
   .node-stats em { color: var(--text); font-style: normal; }
 
   .multi-badge {
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     color: var(--yellow);
-    text-shadow: 0 0 5px #f5c40066;
+    font-weight: 700;
+    text-shadow: 0 0 5px #f5c40088;
   }
 
   /* ACTION BUTTONS */
-  .node-actions {
-    display: flex;
-    gap: 8px;
-  }
+  .node-actions { display: flex; gap: 8px; }
 
   .click-btn {
     font-family: 'Orbitron', sans-serif;
@@ -261,11 +288,54 @@
   }
   .multi-btn:active:not(:disabled) { background: var(--yellow); color: var(--bg); }
   .multi-btn:disabled {
-    opacity: 0.2;
+    opacity: 0.35;
     cursor: not-allowed;
     border-color: var(--dim);
     color: var(--dim);
   }
+
+  /* REFORMAT BUTTON */
+  .reformat-btn {
+    width: 100%;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 12px;
+    border: 1px solid var(--magenta);
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--magenta);
+    text-shadow: var(--glow-m);
+    transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .reformat-btn:active:not(:disabled) { background: var(--magenta); color: var(--bg); }
+  .reformat-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: var(--dim); color: var(--dim); text-shadow: none; }
+
+  /* OVERCLOCK BUTTON */
+  .overclock-btn {
+    width: 100%;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 12px;
+    border: 1px solid var(--orange);
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--orange);
+    text-shadow: var(--glow-o);
+    transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    margin-top: 2px;
+  }
+  .overclock-btn:active:not(:disabled) { background: var(--orange); color: var(--bg); }
+  .overclock-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: var(--dim); color: var(--dim); text-shadow: none; }
 
   /* LOCKED BAR */
   .locked-bar {
@@ -306,7 +376,7 @@
 
   .unlock-cost {
     font-family: 'Orbitron', sans-serif;
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     color: var(--magenta);
     text-shadow: var(--glow-m);
     white-space: nowrap;
@@ -324,64 +394,27 @@
     animation: floatUp 0.8s ease-out forwards;
     z-index: 999;
   }
-
   @keyframes floatUp {
     0%   { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-44px); }
   }
 
-  /* COLOR PALETTE */
-  .c0 { --bc: #00f5ff; }
-  .c1 { --bc: #ff00aa; }
-  .c2 { --bc: #f5c400; }
-  .c3 { --bc: #00ff88; }
-  .c4 { --bc: #ff6600; }
-  .c5 { --bc: #aa00ff; }
-  .c6 { --bc: #00ccff; }
-  .c7 { --bc: #ff3366; }
-  .c8 { --bc: #44ff00; }
-  .c9 { --bc: #ff9900; }
-
-  /* BITS & REFORMAT */
-  .bits-display {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    color: var(--magenta);
-    text-shadow: var(--glow-m);
-    min-height: 1em;
-  }
-
-  .reformat-btn {
-    width: 100%;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    padding: 12px;
-    border: 1px solid var(--magenta);
-    border-radius: 5px;
-    cursor: pointer;
-    background: transparent;
-    color: var(--magenta);
-    text-shadow: var(--glow-m);
-    transition: background 0.15s, color 0.15s;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    margin-top: 2px;
-  }
-  .reformat-btn:active:not(:disabled) {
-    background: var(--magenta);
-    color: var(--bg);
-  }
-  .reformat-btn:disabled {
-    opacity: 0.2;
-    cursor: not-allowed;
-    border-color: var(--dim);
-    color: var(--dim);
-    text-shadow: none;
-  }
+  /* COLOR PALETTE — 15 nodes */
+  .c0  { --bc: #00f5ff; }
+  .c1  { --bc: #ff00aa; }
+  .c2  { --bc: #f5c400; }
+  .c3  { --bc: #00ff88; }
+  .c4  { --bc: #ff6600; }
+  .c5  { --bc: #aa00ff; }
+  .c6  { --bc: #00ccff; }
+  .c7  { --bc: #ff3366; }
+  .c8  { --bc: #44ff00; }
+  .c9  { --bc: #ff9900; }
+  .c10 { --bc: #00ffcc; }
+  .c11 { --bc: #ff0066; }
+  .c12 { --bc: #ccff00; }
+  .c13 { --bc: #0066ff; }
+  .c14 { --bc: #ff6699; }
 
   /* TOAST */
   .toast {
@@ -402,7 +435,6 @@
     animation: toastIn 0.2s ease, toastOut 0.3s ease 1.5s forwards;
     pointer-events: none;
   }
-
   @keyframes toastIn  { from { opacity:0; transform: translateX(-50%) translateY(8px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
   @keyframes toastOut { from { opacity:1; } to { opacity:0; } }
 </style>
@@ -421,33 +453,68 @@
     <div class="points-value" id="pts">0</div>
     <div class="pps" id="pps">▶ 0.00/s <span class="multi-badge" id="pts-multi-badge" style="display:none"></span></div>
   </div>
-  <div class="bits-display" id="bits-display"></div>
+  <div class="header-meta">
+    <div class="bits-display" id="bits-display"></div>
+    <div class="oc-display" id="oc-display"></div>
+  </div>
 </header>
 
 <main id="main"></main>
 
 <script>
 // ── CONSTANTS ──
-const BUTTON_COUNT    = 10;
+const MAX_NODES       = 15;
+const BASE_NODES      = 10;
 const CLICKS_TO_LEVEL = 10;
 const SAVE_KEY        = 'cascade_save';
+const MAX_OVERCLOCK   = 10;
 
-const UNLOCK_COSTS = [0, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24, 1e27];
-const MULTI_COSTS  = [100, 1e4, 1e7, 1e10, 1e13, 1e16, 1e19, 1e22, 1e25, 1e28];
-const NAMES = ['NODE-01','NODE-02','NODE-03','NODE-04','NODE-05','NODE-06','NODE-07','NODE-08','NODE-09','NODE-10'];
-const DESCS = ['+1 pt/s per level','auto-clicks NODE-01','auto-clicks NODE-02','auto-clicks NODE-03','auto-clicks NODE-04','auto-clicks NODE-05','auto-clicks NODE-06','auto-clicks NODE-07','auto-clicks NODE-08','auto-clicks NODE-09'];
+const UNLOCK_COSTS = [
+  0, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24, 1e27,
+  1e54, 1e64, 1e75, 1e87, 1e100
+];
+
+// Overclock bit costs: 1000 * 5^n
+const OVERCLOCK_COSTS = Array.from({ length: MAX_OVERCLOCK }, (_, i) => 1000 * Math.pow(5, i));
+
+const NAMES = [
+  'NODE-01','NODE-02','NODE-03','NODE-04','NODE-05',
+  'NODE-06','NODE-07','NODE-08','NODE-09','NODE-10',
+  'NODE-11','NODE-12','NODE-13','NODE-14','NODE-15'
+];
+const DESCS = [
+  '+1 pt/s per level',
+  'auto-clicks NODE-01','auto-clicks NODE-02','auto-clicks NODE-03','auto-clicks NODE-04',
+  'auto-clicks NODE-05','auto-clicks NODE-06','auto-clicks NODE-07','auto-clicks NODE-08',
+  'auto-clicks NODE-09','auto-clicks NODE-10','auto-clicks NODE-11','auto-clicks NODE-12',
+  'auto-clicks NODE-13','auto-clicks NODE-14'
+];
+
+// Boost costs: node 0 & 1 = 10x unlock, node 2+ = (10 + i*10)x unlock
+const MULTI_COSTS = Array.from({ length: MAX_NODES }, (_, i) => {
+  if (i === 0) return 100;
+  if (i === 1) return UNLOCK_COSTS[1] * 10;
+  return UNLOCK_COSTS[i] * (10 + i * 10);
+});
+
+// How many nodes are currently available (base + overclock unlocks)
+function availableNodes() {
+  return Math.min(BASE_NODES + overclockCount, MAX_NODES);
+}
 
 // ── STATE ──
-let points = 0;
-let pps    = 0;
-let bits   = 0;
+let points        = 0;
+let pps           = 0;
+let bits          = 0;
+let overclockCount      = 0;
+let overclockMultiplier = 1; // 1 = no overclock bonus, 2 = first OC (×2), 4 = second (×4)...
 
-const state = Array.from({ length: BUTTON_COUNT }, (_, i) => ({
+const state = Array.from({ length: MAX_NODES }, (_, i) => ({
   clicks: 0, levels: 0, autoRate: 0,
   multiplier: 1, multiCount: 0, unlocked: i === 0,
 }));
 
-const autoAcc = new Array(BUTTON_COUNT).fill(0);
+const autoAcc = new Array(MAX_NODES).fill(0);
 let lastTick = performance.now();
 let lastUI   = 0;
 let lastSave = 0;
@@ -458,30 +525,28 @@ function fmt(n) {
   return n.toExponential(2);
 }
 
-// node i's multiplier boosts what node i sends DOWN to node i-1
-// so node i-1's incoming multiplier = state[i].multiplier (from node above)
 function incomingMulti(i) {
-  return (i + 1 < BUTTON_COUNT) ? state[i + 1].multiplier : 1;
+  return (i + 1 < MAX_NODES) ? state[i + 1].multiplier : 1;
 }
 
 function incomingCount(i) {
-  return (i + 1 < BUTTON_COUNT) ? state[i + 1].multiCount : 0;
+  return (i + 1 < MAX_NODES) ? state[i + 1].multiCount : 0;
 }
 
-function bitsBonus() {
-  return 1 + bits * 0.03;
-}
+function bitsBonus()      { return 1 + bits * 0.05; }
+function overclockBonus() { return Math.max(1, overclockMultiplier); }
+function totalBonus()     { return bitsBonus() * overclockBonus(); }
 
-// effective auto display for node i = raw autoRate × multiplier from above × bits bonus
 function effectiveAuto(i) {
-  return state[i].autoRate * incomingMulti(i) * bitsBonus();
+  return state[i].autoRate * incomingMulti(i) * totalBonus();
 }
 
 // ── GAME LOGIC ──
 function recalcPPS() {
-  const bonus = bitsBonus();
-  const effectiveRate = new Array(BUTTON_COUNT).fill(0);
-  for (let i = BUTTON_COUNT - 1; i >= 1; i--) {
+  const bonus = totalBonus();
+  const effectiveRate = new Array(MAX_NODES).fill(0);
+  const avail = availableNodes();
+  for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const ownOutput  = state[i].levels * state[i].multiplier * bonus;
     const autoLevels = effectiveRate[i] / CLICKS_TO_LEVEL;
@@ -511,12 +576,11 @@ function buyMultiplier(i) {
   state[i].multiplier = Math.pow(2, state[i].multiCount);
   recalcPPS();
   updateNodeUI(i);
-  if (i > 0) updateNodeUI(i - 1); // node below sees new incoming badge/auto
+  if (i > 0) updateNodeUI(i - 1);
   updateHeader();
 }
 
-// bits: 5 per order of magnitude above 1M, earned one at a time
-// bit n unlocks at 1M × 10^((n-1)/5)
+// ── REFORMAT ──
 function calcBitsGained(pts) {
   if (pts < 1e6) return 0;
   return Math.floor(Math.log10(pts / 1e6) * 5) + 1;
@@ -525,23 +589,52 @@ function calcBitsGained(pts) {
 function doReformat() {
   const gained = calcBitsGained(points);
   if (gained <= 0) { showToast('NEED 1.00e+6 PTS TO REFORMAT'); return; }
-  if (!confirm(`Reformat? Gain ${gained} BITS (total: ${bits + gained}, +${(bits + gained) * 3}% production). All node progress resets.`)) return;
-  bits += gained;
+  // apply overclock bonus to bits gained
+  const actualGained = Math.floor(gained * overclockBonus());
+  if (!confirm(`Reformat? Gain ${actualGained} BITS (total: ${bits + actualGained}, +${(bits + actualGained) * 5}% production). All node progress resets.`)) return;
+  bits += actualGained;
+  softReset();
+  saveGame(true);
+  showToast(`+${actualGained} BITS // TOTAL BONUS: +${bits * 5}%`);
+}
+
+// ── OVERCLOCK ──
+function nextOverclockCost() {
+  return OVERCLOCK_COSTS[overclockCount] || Infinity;
+}
+
+function doOverclock() {
+  if (overclockCount >= MAX_OVERCLOCK) { showToast('MAX OVERCLOCK REACHED'); return; }
+  const cost = nextOverclockCost();
+  if (bits < cost) { showToast(`NEED ${fmt(cost)} BITS TO OVERCLOCK`); return; }
+  if (!confirm(`OVERCLOCK? Costs ${fmt(cost)} BITS. Resets all progress and bits. Gives ×${(overclockCount + 1) * 2} to everything permanently.`)) return;
+  bits -= cost;
+  overclockCount++;
+  overclockMultiplier = overclockCount * 2; // OC1=×2, OC2=×4 ... OC10=×20
+  softReset();
+  bits = 0; // bits also reset on overclock
+  saveGame(true);
+  showToast(`OVERCLOCK ${overclockCount} // ×${overclockMultiplier} TO ALL // NODE-${newNodeIdx + 1} UNLOCKED`);
+}
+
+function softReset() {
   points = 0;
   state.forEach((s, i) => {
     s.clicks = 0; s.levels = 0; s.autoRate = 0;
-    s.multiplier = 1; s.multiCount = 0; s.unlocked = i === 0;
+    s.multiplier = 1; s.multiCount = 0;
+    s.unlocked = i === 0;
   });
   autoAcc.fill(0);
   recalcPPS();
   buildUI();
-  saveGame(true);
-  showToast(`+${gained} BITS // TOTAL BONUS: +${bits * 3}%`);
 }
 
 // ── SAVE / LOAD / RESET ──
 function saveGame(silent = false) {
-  localStorage.setItem(SAVE_KEY, JSON.stringify({ points, bits, state: state.map(s => ({ ...s })) }));
+  localStorage.setItem(SAVE_KEY, JSON.stringify({
+    points, bits, overclockCount, overclockMultiplier,
+    state: state.map(s => ({ ...s }))
+  }));
   if (!silent) {
     const btn = document.getElementById('save-btn');
     btn.textContent = 'SAVED!';
@@ -556,8 +649,10 @@ function loadGame() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    points = data.points || 0;
-    bits   = data.bits   || 0;
+    points             = data.points             || 0;
+    bits               = data.bits               || 0;
+    overclockCount      = data.overclockCount      || 0;
+    overclockMultiplier = Math.max(1, data.overclockMultiplier || 1);
     data.state.forEach((s, i) => {
       if (!state[i]) return;
       state[i].clicks     = s.clicks     ?? 0;
@@ -573,9 +668,9 @@ function loadGame() {
 }
 
 function resetGame() {
-  if (!confirm('Reset all progress? This cannot be undone.')) return;
+  if (!confirm('Reset ALL progress including bits and overclock? This cannot be undone.')) return;
   localStorage.removeItem(SAVE_KEY);
-  points = 0; bits = 0;
+  points = 0; bits = 0; overclockCount = 0; overclockMultiplier = 1;
   state.forEach((s, i) => {
     s.clicks = 0; s.levels = 0; s.autoRate = 0;
     s.multiplier = 1; s.multiCount = 0; s.unlocked = i === 0;
@@ -583,7 +678,7 @@ function resetGame() {
   autoAcc.fill(0);
   recalcPPS();
   buildUI();
-  showToast('PROGRESS RESET');
+  showToast('FULL RESET');
 }
 
 function showToast(msg) {
@@ -593,15 +688,16 @@ function showToast(msg) {
   t.className = 'toast';
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 1900);
+  setTimeout(() => t.remove(), 2200);
 }
 
 // ── BUILD UI ──
 function buildUI() {
   const main = document.getElementById('main');
   main.innerHTML = '';
+  const avail = availableNodes();
 
-  for (let i = 0; i < BUTTON_COUNT; i++) {
+  for (let i = 0; i < avail; i++) {
     const s = state[i];
     const row = document.createElement('div');
     row.id = `row-${i}`;
@@ -621,16 +717,27 @@ function buildUI() {
     row.className = `node-card c${i}`;
 
     const boostCost  = MULTI_COSTS[i] * Math.pow(1000, s.multiCount);
-    const boostLabel = s.multiCount > 0 ? `×${s.multiplier} ${i===0?'pts/s':'auto'} ▸ ${fmt(boostCost)}` : `×2 ${i===0?'pts/s':'auto'} ▸ ${fmt(boostCost)}`;
+    const boostLabel = s.multiCount > 0
+      ? `×${s.multiplier} ${i===0?'pts/s':'auto'} ▸ ${fmt(boostCost)}`
+      : `×2 ${i===0?'pts/s':'auto'} ▸ ${fmt(boostCost)}`;
 
-    const iMulti  = incomingMulti(i);
-    const iCount  = incomingCount(i);
+    const iCount    = incomingCount(i);
+    const iMulti    = incomingMulti(i);
     const autoBadge = `<span class="multi-badge" id="incoming-badge-${i}" style="display:${iCount>0?'':'none'}">×${iMulti}</span>`;
 
     const bitsPreview = calcBitsGained(points);
+    const actualBitsPreview = Math.floor(bitsPreview * overclockBonus());
+    const ocCost = nextOverclockCost();
+    const ocAvail = overclockCount < MAX_OVERCLOCK;
+
     const reformatHtml = i === 0 ? `
       <button class="reformat-btn" id="reformat-btn" onclick="doReformat()" ${bitsPreview<=0?'disabled':''}>
-        ${bitsPreview > 0 ? `REFORMAT ▸ +${bitsPreview} BITS` : 'REFORMAT ▸ NEED 1.00e+6'}
+        ${bitsPreview > 0 ? `REFORMAT ▸ +${actualBitsPreview} BITS` : 'REFORMAT ▸ NEED 1.00e+6'}
+      </button>` : '';
+
+    const overclockHtml = i === 0 ? `
+      <button class="overclock-btn" id="overclock-btn" onclick="doOverclock()" ${(!ocAvail || bits < ocCost) ? 'disabled' : ''}>
+        ${!ocAvail ? `OVERCLOCK ▸ MAXED` : `OVERCLOCK ${overclockCount+1} ▸ ${fmt(ocCost)} BITS`}
       </button>` : '';
 
     row.innerHTML = `
@@ -652,17 +759,19 @@ function buildUI() {
         <button class="click-btn" onclick="handleClick(${i}, event)">CLICK</button>
       </div>
       ${reformatHtml}
+      ${overclockHtml}
     `;
     main.appendChild(row);
   }
+
+  updateHeader();
 }
 
 // ── UPDATE UI ──
 function updateNodeUI(i) {
-  const s = state[i];
+  const s   = state[i];
   const sat = s.autoRate >= 20;
 
-  // progress bar or saturated display
   const pbWrap = document.getElementById(`pbwrap-${i}`);
   const prodEl = document.getElementById(`prod-${i}`);
   if (pbWrap && prodEl) {
@@ -678,20 +787,17 @@ function updateNodeUI(i) {
     }
   }
 
-  // progress text
   const clkStat = document.getElementById(`clk-stat-${i}`);
   const clk     = document.getElementById(`clk-${i}`);
   if (clkStat) clkStat.style.display = sat ? 'none' : '';
   if (!sat && clk) clk.textContent = s.clicks;
 
-  // stats
   const lvl = document.getElementById(`lvl-${i}`);
   if (lvl) lvl.textContent = fmt(s.levels);
 
   const aut = document.getElementById(`aut-${i}`);
   if (aut) aut.textContent = fmt(effectiveAuto(i));
 
-  // boost button (this node's own)
   const multiBtn = document.getElementById(`multi-btn-${i}`);
   if (multiBtn) {
     const cost = MULTI_COSTS[i] * Math.pow(1000, s.multiCount);
@@ -700,14 +806,12 @@ function updateNodeUI(i) {
     multiBtn.disabled = points < cost;
   }
 
-  // incoming badge on this node (set by node above = state[i+1])
   const badge = document.getElementById(`incoming-badge-${i}`);
   if (badge) {
     badge.style.display = incomingCount(i) > 0 ? '' : 'none';
     badge.textContent = `×${incomingMulti(i)}`;
   }
 
-  // pts/s badge in header (set by node 0's own multiplier)
   if (i === 0) {
     const ptsBadge = document.getElementById('pts-multi-badge');
     if (ptsBadge) {
@@ -721,11 +825,14 @@ function updateHeader() {
   document.getElementById('pts').textContent = fmt(points);
   document.getElementById('pps').textContent = `▶ ${fmt(pps)}/s`;
   const bitsEl = document.getElementById('bits-display');
-  if (bitsEl) bitsEl.textContent = bits > 0 ? `⬡ ${bits} BITS (+${bits * 3}%)` : '';
+  if (bitsEl) bitsEl.textContent = bits > 0 ? `⬡ ${fmt(bits)} BITS (+${bits * 5}%)` : '';
+  const ocEl = document.getElementById('oc-display');
+  if (ocEl) ocEl.textContent = overclockCount > 0 ? `⚡ OC${overclockCount} ×${overclockMultiplier}` : '';
 }
 
 function updateUnlockProgress() {
-  for (let i = 1; i < BUTTON_COUNT; i++) {
+  const avail = availableNodes();
+  for (let i = 1; i < avail; i++) {
     if (!state[i].unlocked) {
       const el = document.getElementById(`uprog-${i}`);
       if (el) el.style.width = (Math.min(points / UNLOCK_COSTS[i], 1) * 100).toFixed(1) + '%';
@@ -735,7 +842,8 @@ function updateUnlockProgress() {
 }
 
 function checkUnlocks() {
-  for (let i = 1; i < BUTTON_COUNT; i++) {
+  const avail = availableNodes();
+  for (let i = 1; i < avail; i++) {
     if (!state[i].unlocked && points >= UNLOCK_COSTS[i]) {
       state[i].unlocked = true;
       buildUI();
@@ -744,12 +852,21 @@ function checkUnlocks() {
   }
 }
 
-function updateReformatBtn() {
-  const btn = document.getElementById('reformat-btn');
-  if (!btn) return;
-  const gained = calcBitsGained(points);
-  btn.textContent = gained > 0 ? `REFORMAT ▸ +${gained} BITS` : 'REFORMAT ▸ NEED 1.00e+6';
-  btn.disabled = gained <= 0;
+function updateSpecialBtns() {
+  const reformatBtn = document.getElementById('reformat-btn');
+  if (reformatBtn) {
+    const gained = calcBitsGained(points);
+    const actual = Math.floor(gained * overclockBonus());
+    reformatBtn.textContent = gained > 0 ? `REFORMAT ▸ +${actual} BITS` : 'REFORMAT ▸ NEED 1.00e+6';
+    reformatBtn.disabled = gained <= 0;
+  }
+  const ocBtn = document.getElementById('overclock-btn');
+  if (ocBtn) {
+    const ocCost = nextOverclockCost();
+    const canOC  = overclockCount < MAX_OVERCLOCK;
+    ocBtn.textContent = !canOC ? 'OVERCLOCK ▸ MAXED' : `OVERCLOCK ${overclockCount+1} ▸ ${fmt(ocCost)} BITS`;
+    ocBtn.disabled = !canOC || bits < ocCost;
+  }
 }
 
 // ── CLICK HANDLER ──
@@ -770,8 +887,9 @@ function gameTick(now) {
   const dt = (now - lastTick) / 1000;
   lastTick = now;
 
-  const bonus = bitsBonus();
-  for (let i = BUTTON_COUNT - 1; i >= 1; i--) {
+  const bonus = totalBonus();
+  const avail = availableNodes();
+  for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const rate = state[i].levels * state[i].multiplier * bonus;
     if (rate === 0) continue;
@@ -795,13 +913,13 @@ function gameTick(now) {
 
   if (now - lastUI > 100) {
     lastUI = now;
-    for (let i = 0; i < BUTTON_COUNT; i++) {
+    for (let i = 0; i < avail; i++) {
       if (!state[i].unlocked) break;
       updateNodeUI(i);
     }
     updateUnlockProgress();
     checkUnlocks();
-    updateReformatBtn();
+    updateSpecialBtns();
   }
 
   updateHeader();
