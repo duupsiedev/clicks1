@@ -804,7 +804,7 @@ function buildUI() {
       <div class="prod-display" id="prod-${i}" style="display:none"></div>
       <div class="node-stats">
         <span id="clk-stat-${i}">PROG <em id="clk-${i}">${s.clicks}</em>/10</span>
-        <span>LVL <em id="lvl-${i}">${s.levels}</em></span>
+        <span>LVL <em id="lvl-${i}">${fmtN(s.levels)}</em></span>
         <span>AUTO <em id="aut-${i}">${fmtN(effectiveAuto(i))}</em>/s ${badge}</span>
       </div>
       <div class="node-actions">
@@ -871,7 +871,7 @@ function updateNodeUI(i) {
   if (!sat && clk) clk.textContent = s.clicks;
 
   const lvl = document.getElementById(`lvl-${i}`);
-  if (lvl) lvl.textContent = s.levels;
+  if (lvl) lvl.textContent = fmtN(s.levels);
 
   const aut = document.getElementById(`aut-${i}`);
   if (aut) aut.textContent = fmtN(effectiveAuto(i));
