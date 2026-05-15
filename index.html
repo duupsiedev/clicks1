@@ -410,19 +410,21 @@
 // BIG NUMBER — log10-based to handle e+300+
 // ══════════════════════════════════════════════
 class Big {
-  // Stored as { m: mantissa [1,10), e: exponent }
-  // value = m * 10^e
+  // Stored as { m: mantissa [1,10), e: exponent }  →  value = m * 10^e
   constructor(v = 0) {
     if (v instanceof Big) { this.m = v.m; this.e = v.e; return; }
-    if (v === 0) { this.m = 0; this.e = 0; return; }
+    if (v === 0 || !isFinite(v) || isNaN(v)) { this.m = 0; this.e = 0; return; }
     const s = Math.sign(v); v = Math.abs(v);
     this.e = Math.floor(Math.log10(v));
     this.m = s * v / Math.pow(10, this.e);
     this._norm();
   }
-  static of(m, e) { const b = new Big(0); b.m = m; b.e = e; b._norm(); return b; }
+  static of(m, e) {
+    if (!isFinite(m) || isNaN(m) || !isFinite(e) || isNaN(e)) return new Big(0);
+    const b = new Big(0); b.m = m; b.e = e; b._norm(); return b;
+  }
   _norm() {
-    if (this.m === 0) { this.e = 0; return; }
+    if (this.m === 0 || isNaN(this.m) || !isFinite(this.m)) { this.m = 0; this.e = 0; return; }
     const s = Math.sign(this.m); const am = Math.abs(this.m);
     if (am >= 10 || am < 1) {
       const d = Math.floor(Math.log10(am));
@@ -439,25 +441,43 @@ class Big {
     return Big.of(b.m + this.m * Math.pow(10, this.e - b.e), b.e);
   }
   sub(b) { b = b instanceof Big ? b : new Big(b); return this.add(Big.of(-b.m, b.e)); }
-  mul(b) {
-    b = b instanceof Big ? b : new Big(b);
-    return Big.of(this.m * b.m, this.e + b.e);
+  mul(b) { b = b instanceof Big ? b : new Big(b); return Big.of(this.m * b.m, this.e + b.e); }
+  // mulN: always use log10 to avoid native JS overflow
+  mulN(n) {
+    if (!isFinite(n) || isNaN(n) || n === 0 || this.m === 0) return new Big(0);
+    const an   = Math.abs(n);
+    const sign = Math.sign(n) * Math.sign(this.m);
+    const logN = Math.log10(an);
+    const addE = Math.floor(logN);
+    const remM = Math.pow(10, logN - addE);
+    return Big.of(sign * Math.abs(this.m) * remM, this.e + addE);
   }
-  mulN(n) { return Big.of(this.m * n, this.e); }
-  divN(n) { return Big.of(this.m / n, this.e); }
+  divN(n) {
+    if (!isFinite(n) || isNaN(n) || n === 0) return new Big(0);
+    return this.mulN(1 / n);
+  }
   gte(b) { b = b instanceof Big ? b : new Big(b); if (this.e !== b.e) return this.e > b.e; return this.m >= b.m; }
-  gt(b)  { b = b instanceof Big ? b : new Big(b); if (this.e !== b.e) return this.e > b.e; return this.m > b.m; }
+  gt(b)  { b = b instanceof Big ? b : new Big(b); if (this.e !== b.e) return this.e > b.e; return this.m > b.m;  }
   floor() { if (this.e < 0) return new Big(0); if (this.e >= 15) return new Big(this); return new Big(Math.floor(this.m * Math.pow(10, this.e))); }
-  toNum() { return this.m * Math.pow(10, this.e); }
+  toNum() {
+    const v = this.m * Math.pow(10, this.e);
+    return isFinite(v) ? v : this.e > 0 ? Infinity : 0;
+  }
   fmt() {
     if (this.m === 0) return '0';
-    if (this.e < 3 && this.e >= 0) {
+    if (this.e >= 0 && this.e < 3) {
       const v = this.m * Math.pow(10, this.e);
-      return v < 10 ? v.toFixed(2) : Math.round(v).toString();
+      return isFinite(v) ? (v < 10 ? v.toFixed(2) : Math.round(v).toString()) : `${this.m.toFixed(2)}e+${this.e}`;
     }
     return `${this.m.toFixed(2)}e+${this.e}`;
   }
-  static fromSave(o) { if (!o) return new Big(0); const b = new Big(0); b.m = o.m||0; b.e = o.e||0; return b; }
+  static fromSave(o) {
+    if (!o) return new Big(0);
+    const b = new Big(0);
+    b.m = (isFinite(o.m) && !isNaN(o.m)) ? o.m : 0;
+    b.e = (isFinite(o.e) && !isNaN(o.e)) ? o.e : 0;
+    return b;
+  }
   toSave() { return { m: this.m, e: this.e }; }
 }
 
@@ -486,11 +506,16 @@ const MULTI_BASE_COSTS = [
 function boostCompound(i) { return 1.05 + 0.01 * i; }
 
 // Cost of the nth boost purchase on node i
+// cost(n) = base * (1000 * compound)^n
+// Using logs: log10(cost) = log10(base) + n * log10(1000 * compound)
 function boostCostN(i, n) {
   if (n === 0) return new Big(MULTI_BASE_COSTS[i]);
-  // cost(n) = base * 1000^n * compound^n
-  const c = boostCompound(i);
-  return MULTI_BASE_COSTS[i].mulN(Math.pow(1000, n) * Math.pow(c, n));
+  const c       = boostCompound(i);
+  const base    = MULTI_BASE_COSTS[i];
+  const logMult = n * Math.log10(1000 * c); // log10 of the scaling factor
+  const newE    = base.e + Math.floor(logMult);
+  const newM    = base.m * Math.pow(10, logMult - Math.floor(logMult));
+  return Big.of(newM, newE);
 }
 
 const OVERCLOCK_COSTS_BITS = Array.from({length: MAX_OVERCLOCK}, (_, i) => 1000 * Math.pow(5, i));
@@ -510,8 +535,13 @@ let autoBuyOn           = false; // OC2 toggle
 
 const state = Array.from({length: MAX_NODES}, (_, i) => ({
   clicks: 0, levels: 0, autoRate: 0,
-  multiplier: 1, multiCount: 0, unlocked: i === 0,
+  multiplier: 1, multiplierE: 0, multiCount: 0, unlocked: i === 0,
 }));
+
+// Get node i's multiplier as a Big
+function getMultiBig(i) { return Big.of(state[i].multiplier, state[i].multiplierE); }
+// Get incoming multiplier (from node above) as a Big
+function getIncomingMultiBig(i) { return (i+1 < MAX_NODES) ? getMultiBig(i+1) : new Big(1); }
 
 const autoAcc = new Array(MAX_NODES).fill(0);
 let lastTick = performance.now();
@@ -532,13 +562,12 @@ function overflowBonus(i) {
   return state[i].autoRate >= 20 ? 2 : 1;
 }
 
-function incomingMulti(i) { return (i+1 < MAX_NODES) ? state[i+1].multiplier : 1; }
+function incomingMulti(i) { return (i+1 < MAX_NODES) ? state[i+1].multiplier : 1; } // kept for badge display only
 function incomingCount(i) { return (i+1 < MAX_NODES) ? state[i+1].multiCount : 0; }
 
 function effectiveAuto(i) {
-  // Display only: shows incoming auto × multiplier from above × global bonus
-  // Overflow (OC5) is already baked into the actual production rate via recalcPPS/gameTick
-  return state[i].autoRate * incomingMulti(i) * totalBonus();
+  // Display: autoRate × incomingMultiBig × totalBonus
+  return getIncomingMultiBig(i).mulN(state[i].autoRate * totalBonus());
 }
 
 // ══════════════════════════════════════════════
@@ -546,18 +575,19 @@ function effectiveAuto(i) {
 // ══════════════════════════════════════════════
 function recalcPPS() {
   const bonus = totalBonus();
-  const eff   = new Array(MAX_NODES).fill(0);
+  // Use Big throughout to avoid overflow in cascade
+  const eff = new Array(MAX_NODES).fill(null).map(() => new Big(0));
   const avail = availableNodes();
   for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
-    const of5    = overflowBonus(i);
-    const own    = state[i].levels * state[i].multiplier * bonus * of5;
-    const auto   = eff[i] / CLICKS_TO_LEVEL;
-    eff[i-1] = (own + auto) * CLICKS_TO_LEVEL;
+    const of5  = overflowBonus(i);
+    const own  = getMultiBig(i).mulN(state[i].levels * bonus * of5);
+    const auto = eff[i].divN(CLICKS_TO_LEVEL);
+    eff[i-1]   = own.add(auto).mulN(CLICKS_TO_LEVEL);
   }
-  const auto0 = eff[0] / CLICKS_TO_LEVEL;
+  const auto0 = eff[0].divN(CLICKS_TO_LEVEL);
   const of50  = overflowBonus(0);
-  pps = new Big((state[0].levels + auto0) * state[0].multiplier * bonus * of50);
+  pps = getMultiBig(0).mulN(bonus * of50).mul(new Big(state[0].levels).add(auto0));
 }
 
 function gainLevel(i, count = 1) {
@@ -591,7 +621,10 @@ function buyMultiplier(i) {
   if (!points.gte(cost)) return;
   points = points.sub(cost);
   state[i].multiCount++;
-  state[i].multiplier = Math.pow(2, state[i].multiCount);
+  // Use log2 to avoid Math.pow(2,n) overflow: 2^n = 10^(n*log10(2))
+  const log2n  = state[i].multiCount * Math.log10(2);
+  state[i].multiplier = Math.pow(10, log2n - Math.floor(log2n)); // mantissa portion
+  state[i].multiplierE = Math.floor(log2n);                       // exponent portion
   recalcPPS();
   updateNodeUI(i);
   if (i > 0) updateNodeUI(i-1);
@@ -601,11 +634,10 @@ function buyMultiplier(i) {
 function tryAutoBuy() {
   if (!autoBuyOn || overclockCount < 2) return;
   const avail = availableNodes();
-  let bought = false;
   for (let i = 0; i < avail; i++) {
     if (!state[i].unlocked) continue;
     const cost = boostCostN(i, state[i].multiCount);
-    if (points.gte(cost)) { buyMultiplier(i); bought = true; }
+    if (points.gte(cost)) buyMultiplier(i);
   }
 }
 
@@ -702,12 +734,13 @@ function loadGame() {
     autoBuyOn           = d.autoBuyOn           || false;
     d.state.forEach((s, i) => {
       if (!state[i]) return;
-      state[i].clicks     = s.clicks     ?? 0;
-      state[i].levels     = s.levels     ?? 0;
-      state[i].autoRate   = s.autoRate   ?? 0;
-      state[i].multiplier = s.multiplier ?? 1;
-      state[i].multiCount = s.multiCount ?? 0;
-      state[i].unlocked   = s.unlocked   ?? (i === 0);
+      state[i].clicks      = s.clicks      ?? 0;
+      state[i].levels      = s.levels      ?? 0;
+      state[i].autoRate    = s.autoRate    ?? 0;
+      state[i].multiplier  = s.multiplier  ?? 1;
+      state[i].multiplierE = s.multiplierE ?? 0;
+      state[i].multiCount  = s.multiCount  ?? 0;
+      state[i].unlocked    = s.unlocked    ?? (i === 0);
     });
     recalcPPS();
     showToast('SAVE LOADED');
@@ -762,14 +795,13 @@ function buildUI() {
 
     row.className = `node-card c${i}`;
 
-    const cost     = boostCostN(i, s.multiCount);
-    const canAfford = points.gte(cost);
-    const multLbl  = s.multiCount > 0 ? `×${fmtMul(s.multiplier)}` : '×2';
-    const boostLbl = `${multLbl} ${i===0?'pts/s':'auto'} ▸ ${cost.fmt()}`;
+    const boostCost  = boostCostN(i, s.multiCount);
+    const canAfford  = points.gte(boostCost);
+    const multLbl    = s.multiCount > 0 ? `×${fmtMul(i)}` : '×2';
+    const boostLbl   = `${multLbl} ${i===0?'pts/s':'auto'} ▸ ${boostCost.fmt()}`;
 
-    const iCount = incomingCount(i);
-    const iMulti = incomingMulti(i);
-    const badge  = `<span class="multi-badge" id="incoming-badge-${i}" style="display:${iCount>0?'':'none'}">×${fmtMul(iMulti)}</span>`;
+    const iCount     = incomingCount(i);
+    const badge      = `<span class="multi-badge" id="incoming-badge-${i}" style="display:${iCount>0?'':'none'}">×${fmtIncomingMul(i)}</span>`;
 
     const isNode0 = i === 0;
     const bitsGained  = calcBitsGained(points);
@@ -805,7 +837,7 @@ function buildUI() {
       <div class="node-stats">
         <span id="clk-stat-${i}">PROG <em id="clk-${i}">${s.clicks}</em>/10</span>
         <span>LVL <em id="lvl-${i}">${fmtN(s.levels)}</em></span>
-        <span>AUTO <em id="aut-${i}">${fmtN(effectiveAuto(i))}</em>/s ${badge}</span>
+        <span>AUTO <em id="aut-${i}">${effectiveAuto(i).fmt()}</em>/s ${badge}</span>
       </div>
       <div class="node-actions">
         <button class="multi-btn" id="multi-btn-${i}" onclick="buyMultiplier(${i})" ${canAfford?'':'disabled'}>${boostLbl}</button>
@@ -837,10 +869,12 @@ function fmtN(n) {
   return n.toExponential(2);
 }
 
-function fmtMul(n) {
-  // multiplier display: ×2, ×4... ×1024 → sci
-  if (n < 1000) return n.toString();
-  return n.toExponential(2);
+function fmtMul(i) {
+  // Format node i's multiplier using Big
+  return getMultiBig(i).fmt();
+}
+function fmtIncomingMul(i) {
+  return getIncomingMultiBig(i).fmt();
 }
 
 // ══════════════════════════════════════════════
@@ -856,7 +890,7 @@ function updateNodeUI(i) {
     if (sat) {
       pbWrap.style.display = 'none';
       prodEl.style.display = 'block';
-      prodEl.textContent = `⚡ ${fmtN(effectiveAuto(i) / CLICKS_TO_LEVEL)} lvl/s${overclockCount>=5&&s.autoRate>=20?' ×2OF':''}`;
+      prodEl.textContent = `⚡ ${effectiveAuto(i).divN(CLICKS_TO_LEVEL).fmt()} lvl/s${overclockCount>=5&&s.autoRate>=20?' ×2OF':''}`;
     } else {
       pbWrap.style.display = 'block';
       prodEl.style.display = 'none';
@@ -874,13 +908,13 @@ function updateNodeUI(i) {
   if (lvl) lvl.textContent = fmtN(s.levels);
 
   const aut = document.getElementById(`aut-${i}`);
-  if (aut) aut.textContent = fmtN(effectiveAuto(i));
+  if (aut) aut.textContent = effectiveAuto(i).fmt();
 
   const multiBtn = document.getElementById(`multi-btn-${i}`);
   if (multiBtn) {
     const cost = boostCostN(i, s.multiCount);
     const lbl  = i === 0 ? 'pts/s' : 'auto';
-    const mul  = s.multiCount > 0 ? `×${fmtMul(s.multiplier)}` : '×2';
+    const mul  = s.multiCount > 0 ? `×${fmtMul(i)}` : '×2';
     multiBtn.textContent = `${mul} ${lbl} ▸ ${cost.fmt()}`;
     multiBtn.disabled = !points.gte(cost);
   }
@@ -888,14 +922,14 @@ function updateNodeUI(i) {
   const badge = document.getElementById(`incoming-badge-${i}`);
   if (badge) {
     badge.style.display = incomingCount(i) > 0 ? '' : 'none';
-    badge.textContent = `×${fmtMul(incomingMulti(i))}`;
+    badge.textContent = `×${fmtIncomingMul(i)}`;
   }
 
   if (i === 0) {
     const ptsBadge = document.getElementById('pts-multi-badge');
     if (ptsBadge) {
       ptsBadge.style.display = s.multiCount > 0 ? '' : 'none';
-      ptsBadge.textContent = `×${fmtMul(s.multiplier)}`;
+      ptsBadge.textContent = `×${fmtMul(0)}`;
     }
   }
 }
@@ -980,8 +1014,8 @@ function gameTick(now) {
   for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const of5  = overflowBonus(i);
-    const rate = state[i].levels * state[i].multiplier * bonus * of5;
-    if (rate === 0) continue;
+    const rate = getMultiBig(i).mulN(state[i].levels * bonus * of5).toNum();
+    if (rate === 0 || !isFinite(rate)) continue;
     autoAcc[i] += rate * dt;
     if (autoAcc[i] >= 1) {
       const full = Math.floor(autoAcc[i]);
