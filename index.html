@@ -530,14 +530,14 @@ const MULTI_BASE_COSTS = [
 function boostCompound(i) { return 1.05 + 0.01 * i; }
 
 // Cost of the nth boost purchase on node i
-// cost(n) = base * (1000 * compound)^n * 10^(max(0, n - 50)^1.35 * 0.035)
+// cost(n) = base * (1000 * compound)^n * 10^(max(0, n - 50)^2 * 0.5)
 // The extra post-50 exponent keeps late-game x2 buys from flooding without hurting early progress.
 function boostCostN(i, n) {
   if (n === 0) return new Big(MULTI_BASE_COSTS[i]);
   const c       = boostCompound(i);
   const base    = MULTI_BASE_COSTS[i];
   const softN   = Math.max(0, n - 50);
-  const softExtra = Math.pow(softN, 1.35) * 0.035;
+  const softExtra = softN * softN * 0.5;
   const logMult = n * Math.log10(1000 * c) + softExtra;
   const newE    = base.e + Math.floor(logMult);
   const newM    = base.m * Math.pow(10, logMult - Math.floor(logMult));
