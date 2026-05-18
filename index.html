@@ -423,6 +423,11 @@ class Big {
     if (!isFinite(m) || isNaN(m) || !isFinite(e) || isNaN(e)) return new Big(0);
     const b = new Big(0); b.m = m; b.e = e; b._norm(); return b;
   }
+  static fromLog10(log, sign = 1) {
+    if (!isFinite(log) || isNaN(log) || !isFinite(sign) || isNaN(sign) || sign === 0) return new Big(0);
+    const e = Math.floor(log);
+    return Big.of(Math.sign(sign) * Math.pow(10, log - e), e);
+  }
   _norm() {
     if (this.m === 0 || isNaN(this.m) || !isFinite(this.m)) { this.m = 0; this.e = 0; return; }
     const s = Math.sign(this.m); const am = Math.abs(this.m);
@@ -459,9 +464,27 @@ class Big {
   gte(b) { b = b instanceof Big ? b : new Big(b); if (this.e !== b.e) return this.e > b.e; return this.m >= b.m; }
   gt(b)  { b = b instanceof Big ? b : new Big(b); if (this.e !== b.e) return this.e > b.e; return this.m > b.m;  }
   floor() { if (this.e < 0) return new Big(0); if (this.e >= 15) return new Big(this); return new Big(Math.floor(this.m * Math.pow(10, this.e))); }
-  toNum() {
+  log10() {
+    return this.m === 0 ? -Infinity : this.e + Math.log10(Math.abs(this.m));
+  }
+  toNum(max = Number.MAX_SAFE_INTEGER) {
+    if (this.m === 0) return 0;
+    if (!isFinite(max) || isNaN(max) || max <= 0) max = Number.MAX_SAFE_INTEGER;
+    const maxLog = Math.log10(max);
+    const log = this.log10();
+    if (log > maxLog) return Math.sign(this.m) * max;
     const v = this.m * Math.pow(10, this.e);
-    return isFinite(v) ? v : this.e > 0 ? Infinity : 0;
+    return isFinite(v) ? v : Math.sign(this.m) * max;
+  }
+  ratioTo(b) {
+    b = b instanceof Big ? b : new Big(b);
+    if (this.m === 0) return 0;
+    if (b.m === 0) return 1;
+    const diff = this.log10() - b.log10();
+    if (diff >= 0) return 1;
+    if (diff < -12) return 0;
+    const r = Math.pow(10, diff);
+    return isFinite(r) && !isNaN(r) ? Math.max(0, Math.min(1, r)) : 0;
   }
   fmt() {
     if (this.m === 0) return '0';
@@ -476,6 +499,7 @@ class Big {
     const b = new Big(0);
     b.m = (isFinite(o.m) && !isNaN(o.m)) ? o.m : 0;
     b.e = (isFinite(o.e) && !isNaN(o.e)) ? o.e : 0;
+    b._norm();
     return b;
   }
   toSave() { return { m: this.m, e: this.e }; }
@@ -552,9 +576,24 @@ let lastSave = 0;
 // HELPERS
 // ══════════════════════════════════════════════
 function availableNodes() { return Math.min(BASE_NODES + overclockCount, MAX_NODES); }
-function bitsBonus()      { return 1 + bits * 0.05; }
+const PLAIN_NUMBER_CAP = 1e100;
+
+function cleanNumber(v, fallback = 0, cap = PLAIN_NUMBER_CAP) {
+  if (!isFinite(v) || isNaN(v)) return fallback;
+  return Math.max(-cap, Math.min(cap, v));
+}
+
+function addPlain(a, b) {
+  return cleanNumber(cleanNumber(a) + cleanNumber(b));
+}
+
+function mulPlain(a, b) {
+  return cleanNumber(cleanNumber(a) * cleanNumber(b));
+}
+
+function bitsBonus()      { return cleanNumber(1 + cleanNumber(bits) * 0.05, 1); }
 function overclockBonus() { return Math.max(1, overclockMultiplier); }
-function totalBonus()     { return bitsBonus() * overclockBonus(); }
+function totalBonus()     { return mulPlain(bitsBonus(), overclockBonus()); }
 
 // OC5: overflow — saturated nodes produce ×2
 function overflowBonus(i) {
@@ -567,7 +606,7 @@ function incomingCount(i) { return (i+1 < MAX_NODES) ? state[i+1].multiCount : 0
 
 function effectiveAuto(i) {
   // Display: autoRate × incomingMultiBig × totalBonus
-  return getIncomingMultiBig(i).mulN(state[i].autoRate * totalBonus());
+  return getIncomingMultiBig(i).mulN(mulPlain(state[i].autoRate, totalBonus()));
 }
 
 // ══════════════════════════════════════════════
@@ -581,28 +620,29 @@ function recalcPPS() {
   for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const of5  = overflowBonus(i);
-    const own  = getMultiBig(i).mulN(state[i].levels * bonus * of5);
+    const own  = getMultiBig(i).mulN(mulPlain(mulPlain(state[i].levels, bonus), of5));
     const auto = eff[i].divN(CLICKS_TO_LEVEL);
     eff[i-1]   = own.add(auto).mulN(CLICKS_TO_LEVEL);
   }
   const auto0 = eff[0].divN(CLICKS_TO_LEVEL);
   const of50  = overflowBonus(0);
-  pps = getMultiBig(0).mulN(bonus * of50).mul(new Big(state[0].levels).add(auto0));
+  pps = getMultiBig(0).mulN(mulPlain(bonus, of50)).mul(new Big(state[0].levels).add(auto0));
 }
 
 function gainLevel(i, count = 1) {
+  count = cleanNumber(count);
   const prevLevels = state[i].levels;
-  state[i].levels += count;
+  state[i].levels = addPlain(state[i].levels, count);
 
   // OC3: every 10 levels grants +1 bonus level (count crossings of multiples of 10)
   let bonus3 = 0;
   if (overclockCount >= 3) {
-    bonus3 = Math.floor(state[i].levels / 10) - Math.floor(prevLevels / 10);
-    if (bonus3 > 0) state[i].levels += bonus3;
+    bonus3 = cleanNumber(Math.floor(state[i].levels / 10) - Math.floor(prevLevels / 10));
+    if (bonus3 > 0) state[i].levels = addPlain(state[i].levels, bonus3);
   }
 
   // autoRate of node below increases by total new levels gained
-  if (i > 0) state[i-1].autoRate += count + bonus3;
+  if (i > 0) state[i-1].autoRate = addPlain(state[i-1].autoRate, count + bonus3);
   recalcPPS();
 }
 
@@ -620,7 +660,7 @@ function buyMultiplier(i) {
   const cost = boostCostN(i, state[i].multiCount);
   if (!points.gte(cost)) return;
   points = points.sub(cost);
-  state[i].multiCount++;
+  state[i].multiCount = Math.floor(cleanNumber(state[i].multiCount + 1, state[i].multiCount));
   // Use log2 to avoid Math.pow(2,n) overflow: 2^n = 10^(n*log10(2))
   const log2n  = state[i].multiCount * Math.log10(2);
   state[i].multiplier = Math.pow(10, log2n - Math.floor(log2n)); // mantissa portion
@@ -644,7 +684,7 @@ function tryAutoBuy() {
 // OC4: auto bits farming — 0.1% of bits per second
 function tickBits(dt) {
   if (overclockCount < 4 || bits <= 0) return;
-  bits += bits * 0.001 * dt;
+  bits = addPlain(bits, mulPlain(bits, 0.001 * dt));
 }
 
 // ══════════════════════════════════════════════
@@ -659,18 +699,19 @@ function calcBitsGained(pts) {
 function doReformat() {
   const gained = calcBitsGained(points);
   if (gained <= 0) { showToast('NEED 1.00e+6 PTS TO REFORMAT'); return; }
-  const actual = Math.floor(gained * overclockBonus());
-  if (!confirm(`Reformat? Gain ${actual} BITS (total: ${Math.floor(bits + actual)}, +${Math.floor((bits + actual) * 5)}% production). All node progress resets.`)) return;
-  bits += actual;
+  const actual = cleanNumber(Math.floor(mulPlain(gained, overclockBonus())));
+  const nextBits = addPlain(bits, actual);
+  if (!confirm(`Reformat? Gain ${actual} BITS (total: ${Math.floor(nextBits)}, +${Math.floor(mulPlain(nextBits, 5))}% production). All node progress resets.`)) return;
+  bits = nextBits;
   softReset();
   saveGame(true);
-  showToast(`+${actual} BITS // TOTAL: +${Math.floor(bits * 5)}%`);
+  showToast(`+${actual} BITS // TOTAL: +${Math.floor(mulPlain(bits, 5))}%`);
 }
 
 // ══════════════════════════════════════════════
 // OVERCLOCK
 // ══════════════════════════════════════════════
-function nextOverclockCost() { return OVERCLOCK_COSTS_BITS[overclockCount] ?? Infinity; }
+function nextOverclockCost() { return OVERCLOCK_COSTS_BITS[overclockCount] ?? PLAIN_NUMBER_CAP; }
 
 function doOverclock() {
   if (overclockCount >= MAX_OVERCLOCK) { showToast('MAX OVERCLOCK REACHED'); return; }
@@ -685,7 +726,7 @@ function doOverclock() {
     : newOC === 5 ? ' // OVERFLOW UNLOCKED'
     : '';
   if (!confirm(`OVERCLOCK ${newOC}? Costs ${cost.toLocaleString()} BITS. Resets all bits & progress. Gives ×${newMul} to everything permanently.${bonusMsg}`)) return;
-  bits -= cost;
+  bits = Math.max(0, bits - cost);
   overclockCount = newOC;
   overclockMultiplier = newOC * 2;
   softReset();
@@ -698,7 +739,7 @@ function softReset() {
   points = new Big(0);
   state.forEach((s, i) => {
     s.clicks = 0; s.levels = 0; s.autoRate = 0;
-    s.multiplier = 1; s.multiCount = 0; s.unlocked = i === 0;
+    s.multiplier = 1; s.multiplierE = 0; s.multiCount = 0; s.unlocked = i === 0;
   });
   autoAcc.fill(0);
   autoBuyOn = false;
@@ -728,18 +769,18 @@ function loadGame() {
     if (!raw) return;
     const d = JSON.parse(raw);
     points              = Big.fromSave(d.points);
-    bits                = d.bits               || 0;
-    overclockCount      = d.overclockCount      || 0;
-    overclockMultiplier = Math.max(1, d.overclockMultiplier || 1);
+    bits                = cleanNumber(d.bits || 0);
+    overclockCount      = Math.floor(Math.max(0, cleanNumber(d.overclockCount || 0, 0, MAX_OVERCLOCK)));
+    overclockMultiplier = Math.max(1, cleanNumber(d.overclockMultiplier || 1));
     autoBuyOn           = d.autoBuyOn           || false;
     d.state.forEach((s, i) => {
       if (!state[i]) return;
-      state[i].clicks      = s.clicks      ?? 0;
-      state[i].levels      = s.levels      ?? 0;
-      state[i].autoRate    = s.autoRate    ?? 0;
-      state[i].multiplier  = s.multiplier  ?? 1;
-      state[i].multiplierE = s.multiplierE ?? 0;
-      state[i].multiCount  = s.multiCount  ?? 0;
+      state[i].clicks      = Math.floor(Math.max(0, cleanNumber(s.clicks      ?? 0, 0, CLICKS_TO_LEVEL - 1)));
+      state[i].levels      = Math.floor(Math.max(0, cleanNumber(s.levels      ?? 0)));
+      state[i].autoRate    = Math.floor(Math.max(0, cleanNumber(s.autoRate    ?? 0)));
+      state[i].multiplier  = cleanNumber(s.multiplier  ?? 1, 1, 10);
+      state[i].multiplierE = Math.floor(cleanNumber(s.multiplierE ?? 0));
+      state[i].multiCount  = Math.floor(Math.max(0, cleanNumber(s.multiCount  ?? 0)));
       state[i].unlocked    = s.unlocked    ?? (i === 0);
     });
     recalcPPS();
@@ -751,7 +792,7 @@ function resetGame() {
   if (!confirm('Reset ALL progress including bits and overclock? This cannot be undone.')) return;
   localStorage.removeItem(SAVE_KEY);
   points = new Big(0); bits = 0; overclockCount = 0; overclockMultiplier = 1; autoBuyOn = false;
-  state.forEach((s, i) => { s.clicks=0; s.levels=0; s.autoRate=0; s.multiplier=1; s.multiCount=0; s.unlocked=i===0; });
+  state.forEach((s, i) => { s.clicks=0; s.levels=0; s.autoRate=0; s.multiplier=1; s.multiplierE=0; s.multiCount=0; s.unlocked=i===0; });
   autoAcc.fill(0);
   recalcPPS();
   buildUI();
@@ -783,7 +824,7 @@ function buildUI() {
     if (!s.unlocked) {
       const cost = UNLOCK_COSTS[i];
       row.className = 'locked-bar';
-      const prog = points.gte(cost) ? 100 : (points.e >= cost.e - 1 ? (points.toNum() / cost.toNum() * 100) : 0);
+      const prog = points.gte(cost) ? 100 : points.ratioTo(cost) * 100;
       row.innerHTML = `
         <span class="locked-name">${NAMES[i]}</span>
         <div class="unlock-prog-wrap"><div class="unlock-prog" id="uprog-${i}" style="width:${Math.min(prog,100).toFixed(1)}%"></div></div>
@@ -805,7 +846,7 @@ function buildUI() {
 
     const isNode0 = i === 0;
     const bitsGained  = calcBitsGained(points);
-    const actualBits  = Math.floor(bitsGained * overclockBonus());
+    const actualBits  = cleanNumber(Math.floor(mulPlain(bitsGained, overclockBonus())));
     const ocCost      = nextOverclockCost();
     const canOC       = overclockCount < MAX_OVERCLOCK;
     const canAutoBuy  = overclockCount >= 2;
@@ -938,7 +979,7 @@ function updateHeader() {
   document.getElementById('pts').textContent = points.fmt();
   document.getElementById('pps').textContent = `▶ ${pps.fmt()}/s`;
   const bitsEl = document.getElementById('bits-display');
-  if (bitsEl) bitsEl.textContent = bits > 0 ? `⬡ ${Math.floor(bits).toLocaleString()} BITS (+${Math.floor(bits*5)}%)` : '';
+  if (bitsEl) bitsEl.textContent = bits > 0 ? `⬡ ${Math.floor(bits).toLocaleString()} BITS (+${Math.floor(mulPlain(bits, 5))}%)` : '';
   const ocEl = document.getElementById('oc-display');
   if (ocEl) ocEl.textContent = overclockCount > 0 ? `⚡ OC${overclockCount} ×${overclockMultiplier}` : '';
 }
@@ -950,7 +991,7 @@ function updateUnlockProgress() {
       const el = document.getElementById(`uprog-${i}`);
       if (el) {
         const cost = UNLOCK_COSTS[i];
-        const prog = points.gte(cost) ? 100 : (points.e >= cost.e - 1 ? Math.min(100, points.toNum() / cost.toNum() * 100) : 0);
+        const prog = points.gte(cost) ? 100 : points.ratioTo(cost) * 100;
         el.style.width = prog.toFixed(1) + '%';
       }
       break;
@@ -973,7 +1014,7 @@ function updateSpecialBtns() {
   const rf = document.getElementById('reformat-btn');
   if (rf) {
     const g = calcBitsGained(points);
-    const a = Math.floor(g * overclockBonus());
+    const a = cleanNumber(Math.floor(mulPlain(g, overclockBonus())));
     rf.textContent = g > 0 ? `REFORMAT ▸ +${a} BITS` : 'REFORMAT ▸ NEED 1.00e+6';
     rf.disabled = g <= 0;
   }
@@ -1014,14 +1055,14 @@ function gameTick(now) {
   for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const of5  = overflowBonus(i);
-    const rate = getMultiBig(i).mulN(state[i].levels * bonus * of5).toNum();
-    if (rate === 0 || !isFinite(rate)) continue;
-    autoAcc[i] += rate * dt;
+    const rate = getMultiBig(i).mulN(mulPlain(mulPlain(state[i].levels, bonus), of5)).toNum(PLAIN_NUMBER_CAP);
+    if (rate === 0) continue;
+    autoAcc[i] = addPlain(autoAcc[i], mulPlain(rate, dt));
     if (autoAcc[i] >= 1) {
-      const full = Math.floor(autoAcc[i]);
-      autoAcc[i] -= full;
+      const full = cleanNumber(Math.floor(autoAcc[i]));
+      autoAcc[i] = Math.max(0, autoAcc[i] - full);
       const s   = state[i-1];
-      const tot = s.clicks + full;
+      const tot = addPlain(s.clicks, full);
       const newLvl = Math.floor(tot / CLICKS_TO_LEVEL);
       s.clicks = tot % CLICKS_TO_LEVEL;
       if (newLvl > 0) {
