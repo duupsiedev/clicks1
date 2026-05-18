@@ -530,13 +530,15 @@ const MULTI_BASE_COSTS = [
 function boostCompound(i) { return 1.05 + 0.01 * i; }
 
 // Cost of the nth boost purchase on node i
-// cost(n) = base * (1000 * compound)^n
-// Using logs: log10(cost) = log10(base) + n * log10(1000 * compound)
+// cost(n) = base * (1000 * compound)^n * 10^(max(0, n - 50)^1.35 * 0.035)
+// The extra post-50 exponent keeps late-game x2 buys from flooding without hurting early progress.
 function boostCostN(i, n) {
   if (n === 0) return new Big(MULTI_BASE_COSTS[i]);
   const c       = boostCompound(i);
   const base    = MULTI_BASE_COSTS[i];
-  const logMult = n * Math.log10(1000 * c); // log10 of the scaling factor
+  const softN   = Math.max(0, n - 50);
+  const softExtra = Math.pow(softN, 1.35) * 0.035;
+  const logMult = n * Math.log10(1000 * c) + softExtra;
   const newE    = base.e + Math.floor(logMult);
   const newM    = base.m * Math.pow(10, logMult - Math.floor(logMult));
   return Big.of(newM, newE);
@@ -558,7 +560,7 @@ let overclockMultiplier = 1;
 let autoBuyOn           = false; // OC2 toggle
 
 const state = Array.from({length: MAX_NODES}, (_, i) => ({
-  clicks: 0, levels: 0, autoRate: 0,
+  clicks: 0, levels: new Big(0), autoRate: new Big(0),
   multiplier: 1, multiplierE: 0, multiCount: 0, unlocked: i === 0,
 }));
 
@@ -567,7 +569,7 @@ function getMultiBig(i) { return Big.of(state[i].multiplier, state[i].multiplier
 // Get incoming multiplier (from node above) as a Big
 function getIncomingMultiBig(i) { return (i+1 < MAX_NODES) ? getMultiBig(i+1) : new Big(1); }
 
-const autoAcc = new Array(MAX_NODES).fill(0);
+const autoAcc = new Array(MAX_NODES).fill(null).map(() => new Big(0));
 let lastTick = performance.now();
 let lastUI   = 0;
 let lastSave = 0;
@@ -591,6 +593,26 @@ function mulPlain(a, b) {
   return cleanNumber(cleanNumber(a) * cleanNumber(b));
 }
 
+function asBig(v) {
+  if (v instanceof Big) return new Big(v);
+  if (v && typeof v === 'object' && 'm' in v && 'e' in v) return Big.fromSave(v);
+  return new Big((isFinite(v) && !isNaN(v)) ? v : 0);
+}
+
+function bigSave(v) {
+  return asBig(v).toSave();
+}
+
+function bigFloorDivN(v, n) {
+  return asBig(v).divN(n).floor();
+}
+
+function bigModSmall(v, n) {
+  v = asBig(v);
+  if (v.m === 0 || v.e >= 15) return 0;
+  return Math.floor(v.toNum(Number.MAX_SAFE_INTEGER)) % n;
+}
+
 function bitsBonus()      { return cleanNumber(1 + cleanNumber(bits) * 0.05, 1); }
 function overclockBonus() { return Math.max(1, overclockMultiplier); }
 function totalBonus()     { return mulPlain(bitsBonus(), overclockBonus()); }
@@ -598,7 +620,7 @@ function totalBonus()     { return mulPlain(bitsBonus(), overclockBonus()); }
 // OC5: overflow — saturated nodes produce ×2
 function overflowBonus(i) {
   if (overclockCount < 5) return 1;
-  return state[i].autoRate >= 20 ? 2 : 1;
+  return asBig(state[i].autoRate).gte(new Big(20)) ? 2 : 1;
 }
 
 function incomingMulti(i) { return (i+1 < MAX_NODES) ? state[i+1].multiplier : 1; } // kept for badge display only
@@ -606,7 +628,7 @@ function incomingCount(i) { return (i+1 < MAX_NODES) ? state[i+1].multiCount : 0
 
 function effectiveAuto(i) {
   // Display: autoRate × incomingMultiBig × totalBonus
-  return getIncomingMultiBig(i).mulN(mulPlain(state[i].autoRate, totalBonus()));
+  return getIncomingMultiBig(i).mul(asBig(state[i].autoRate)).mulN(totalBonus());
 }
 
 // ══════════════════════════════════════════════
@@ -620,29 +642,30 @@ function recalcPPS() {
   for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const of5  = overflowBonus(i);
-    const own  = getMultiBig(i).mulN(mulPlain(mulPlain(state[i].levels, bonus), of5));
+    const own  = getMultiBig(i).mul(asBig(state[i].levels)).mulN(mulPlain(bonus, of5));
     const auto = eff[i].divN(CLICKS_TO_LEVEL);
     eff[i-1]   = own.add(auto).mulN(CLICKS_TO_LEVEL);
   }
   const auto0 = eff[0].divN(CLICKS_TO_LEVEL);
   const of50  = overflowBonus(0);
-  pps = getMultiBig(0).mulN(mulPlain(bonus, of50)).mul(new Big(state[0].levels).add(auto0));
+  pps = getMultiBig(0).mulN(mulPlain(bonus, of50)).mul(asBig(state[0].levels).add(auto0));
 }
 
 function gainLevel(i, count = 1) {
-  count = cleanNumber(count);
-  const prevLevels = state[i].levels;
-  state[i].levels = addPlain(state[i].levels, count);
+  count = asBig(count).floor();
+  if (count.m === 0) return;
+  const prevLevels = asBig(state[i].levels);
+  state[i].levels = prevLevels.add(count);
 
   // OC3: every 10 levels grants +1 bonus level (count crossings of multiples of 10)
-  let bonus3 = 0;
+  let bonus3 = new Big(0);
   if (overclockCount >= 3) {
-    bonus3 = cleanNumber(Math.floor(state[i].levels / 10) - Math.floor(prevLevels / 10));
-    if (bonus3 > 0) state[i].levels = addPlain(state[i].levels, bonus3);
+    bonus3 = bigFloorDivN(state[i].levels, 10).sub(bigFloorDivN(prevLevels, 10));
+    if (bonus3.gt(new Big(0))) state[i].levels = asBig(state[i].levels).add(bonus3);
   }
 
   // autoRate of node below increases by total new levels gained
-  if (i > 0) state[i-1].autoRate = addPlain(state[i-1].autoRate, count + bonus3);
+  if (i > 0) state[i-1].autoRate = asBig(state[i-1].autoRate).add(count).add(bonus3);
   recalcPPS();
 }
 
@@ -681,10 +704,10 @@ function tryAutoBuy() {
   }
 }
 
-// OC4: auto bits farming — 0.1% of bits per second
+// OC4: auto bits farming — 0.01% of bits per second
 function tickBits(dt) {
   if (overclockCount < 4 || bits <= 0) return;
-  bits = addPlain(bits, mulPlain(bits, 0.001 * dt));
+  bits = addPlain(bits, mulPlain(bits, 0.0001 * dt));
 }
 
 // ══════════════════════════════════════════════
@@ -738,10 +761,10 @@ function doOverclock() {
 function softReset() {
   points = new Big(0);
   state.forEach((s, i) => {
-    s.clicks = 0; s.levels = 0; s.autoRate = 0;
+    s.clicks = 0; s.levels = new Big(0); s.autoRate = new Big(0);
     s.multiplier = 1; s.multiplierE = 0; s.multiCount = 0; s.unlocked = i === 0;
   });
-  autoAcc.fill(0);
+  for (let i = 0; i < autoAcc.length; i++) autoAcc[i] = new Big(0);
   autoBuyOn = false;
   recalcPPS();
   buildUI();
@@ -753,7 +776,7 @@ function softReset() {
 function saveGame(silent = false) {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
     points: points.toSave(), bits, overclockCount, overclockMultiplier, autoBuyOn,
-    state: state.map(s => ({...s}))
+    state: state.map(s => ({...s, levels: bigSave(s.levels), autoRate: bigSave(s.autoRate)}))
   }));
   if (!silent) {
     const btn = document.getElementById('save-btn');
@@ -776,8 +799,8 @@ function loadGame() {
     d.state.forEach((s, i) => {
       if (!state[i]) return;
       state[i].clicks      = Math.floor(Math.max(0, cleanNumber(s.clicks      ?? 0, 0, CLICKS_TO_LEVEL - 1)));
-      state[i].levels      = Math.floor(Math.max(0, cleanNumber(s.levels      ?? 0)));
-      state[i].autoRate    = Math.floor(Math.max(0, cleanNumber(s.autoRate    ?? 0)));
+      state[i].levels      = asBig(s.levels);
+      state[i].autoRate    = asBig(s.autoRate);
       state[i].multiplier  = cleanNumber(s.multiplier  ?? 1, 1, 10);
       state[i].multiplierE = Math.floor(cleanNumber(s.multiplierE ?? 0));
       state[i].multiCount  = Math.floor(Math.max(0, cleanNumber(s.multiCount  ?? 0)));
@@ -792,8 +815,8 @@ function resetGame() {
   if (!confirm('Reset ALL progress including bits and overclock? This cannot be undone.')) return;
   localStorage.removeItem(SAVE_KEY);
   points = new Big(0); bits = 0; overclockCount = 0; overclockMultiplier = 1; autoBuyOn = false;
-  state.forEach((s, i) => { s.clicks=0; s.levels=0; s.autoRate=0; s.multiplier=1; s.multiplierE=0; s.multiCount=0; s.unlocked=i===0; });
-  autoAcc.fill(0);
+  state.forEach((s, i) => { s.clicks=0; s.levels=new Big(0); s.autoRate=new Big(0); s.multiplier=1; s.multiplierE=0; s.multiCount=0; s.unlocked=i===0; });
+  for (let i = 0; i < autoAcc.length; i++) autoAcc[i] = new Big(0);
   recalcPPS();
   buildUI();
   showToast('FULL RESET');
@@ -905,6 +928,7 @@ function toggleAutoBuy() {
 // FORMAT HELPERS
 // ══════════════════════════════════════════════
 function fmtN(n) {
+  if (n instanceof Big || (n && typeof n === 'object' && 'm' in n && 'e' in n)) return asBig(n).fmt();
   // format a plain number in sci notation
   if (n < 1000) return n.toFixed(n < 10 ? 2 : 0);
   return n.toExponential(2);
@@ -923,7 +947,7 @@ function fmtIncomingMul(i) {
 // ══════════════════════════════════════════════
 function updateNodeUI(i) {
   const s   = state[i];
-  const sat = s.autoRate >= 20;
+  const sat = asBig(s.autoRate).gte(new Big(20));
 
   const pbWrap = document.getElementById(`pbwrap-${i}`);
   const prodEl = document.getElementById(`prod-${i}`);
@@ -931,7 +955,7 @@ function updateNodeUI(i) {
     if (sat) {
       pbWrap.style.display = 'none';
       prodEl.style.display = 'block';
-      prodEl.textContent = `⚡ ${effectiveAuto(i).divN(CLICKS_TO_LEVEL).fmt()} lvl/s${overclockCount>=5&&s.autoRate>=20?' ×2OF':''}`;
+      prodEl.textContent = `⚡ ${effectiveAuto(i).divN(CLICKS_TO_LEVEL).fmt()} lvl/s${overclockCount>=5&&sat?' ×2OF':''}`;
     } else {
       pbWrap.style.display = 'block';
       prodEl.style.display = 'none';
@@ -1055,17 +1079,17 @@ function gameTick(now) {
   for (let i = avail - 1; i >= 1; i--) {
     if (!state[i].unlocked) continue;
     const of5  = overflowBonus(i);
-    const rate = getMultiBig(i).mulN(mulPlain(mulPlain(state[i].levels, bonus), of5)).toNum(PLAIN_NUMBER_CAP);
-    if (rate === 0) continue;
-    autoAcc[i] = addPlain(autoAcc[i], mulPlain(rate, dt));
-    if (autoAcc[i] >= 1) {
-      const full = cleanNumber(Math.floor(autoAcc[i]));
-      autoAcc[i] = Math.max(0, autoAcc[i] - full);
+    const rate = getMultiBig(i).mul(asBig(state[i].levels)).mulN(mulPlain(bonus, of5));
+    if (rate.m === 0) continue;
+    autoAcc[i] = asBig(autoAcc[i]).add(rate.mulN(dt));
+    if (autoAcc[i].gte(new Big(1))) {
+      const full = autoAcc[i].floor();
       const s   = state[i-1];
-      const tot = addPlain(s.clicks, full);
-      const newLvl = Math.floor(tot / CLICKS_TO_LEVEL);
-      s.clicks = tot % CLICKS_TO_LEVEL;
-      if (newLvl > 0) {
+      const tot = full.add(new Big(s.clicks));
+      const newLvl = bigFloorDivN(tot, CLICKS_TO_LEVEL);
+      s.clicks = bigModSmall(tot, CLICKS_TO_LEVEL);
+      autoAcc[i] = autoAcc[i].sub(full);
+      if (newLvl.gt(new Big(0))) {
         gainLevel(i-1, newLvl);
       }
     }
